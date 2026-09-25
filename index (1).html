@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1, viewport-fit=cover">
+<title>Para ti 🌻</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;background:#030814}
+  body{display:grid;place-items:center;overflow:hidden}
+  .scene{width:min(100vw,832px);aspect-ratio:832/512}
+  canvas{width:100%;height:100%;display:block}
+
+  /* ---- agregado: tarjeta de mensaje sobre la escena ---- */
+  #tarjeta-mensaje{
+    position:fixed; inset:0; z-index:5; display:flex; align-items:center; justify-content:center;
+    padding:24px; padding-top:calc(24px + env(safe-area-inset-top,0px));
+    padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+    pointer-events:none;
+  }
+  #tarjeta-mensaje .caja{
+    pointer-events:auto;
+    max-width:560px; max-height:70vh; overflow-y:auto;
+    background:rgba(3,8,20,0.72); border:1px solid rgba(255,217,74,0.35);
+    border-radius:16px; padding:28px 26px; box-shadow:0 0 40px rgba(255,217,74,0.12);
+    font-family:Georgia,'Times New Roman',serif; color:#fff6d8; text-align:center;
+  }
+  #tarjeta-mensaje .caja::-webkit-scrollbar{ width:6px; }
+  #tarjeta-mensaje .caja::-webkit-scrollbar-thumb{ background:#e8a51a; border-radius:6px; }
+  #tarjeta-mensaje h1{
+    margin:0 0 14px; font-size:1.7rem; letter-spacing:.3em; text-indent:.3em;
+    color:#ffd94a; text-shadow:0 0 10px rgba(255,217,74,0.6);
+  }
+  #tarjeta-mensaje p{ font-size:1.05rem; line-height:1.7; white-space:pre-line; text-align:left; margin:0; }
+
+  #ramos{ display:flex; gap:20px; justify-content:center; margin-top:22px; }
+  .ramo-btn{
+    background:none; border:none; cursor:pointer; padding:4px;
+    filter: drop-shadow(0 0 5px rgba(255,217,74,.7));
+    transition: transform .2s ease;
+  }
+  .ramo-btn svg{ width:42px; height:42px; display:block; }
+  .ramo-btn:hover{ transform:translateY(-3px) scale(1.08); }
+
+  #volver{
+    position:fixed; z-index:6; top:calc(20px + env(safe-area-inset-top,0px)); left:20px;
+    background:rgba(3,8,20,0.7); border:1px solid rgba(255,217,74,0.4); color:#fff6d8;
+    font-family:Georgia,'Times New Roman',serif; font-size:.95rem; padding:9px 18px;
+    border-radius:999px; cursor:pointer;
+  }
+  .oculta{ display:none !important; }
+
+  /* ---- agregado: pantalla de inicio para permitir audio con sonido ---- */
+  #inicio{
+    position:fixed; inset:0; z-index:10; background:#030814;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    text-align:center; padding:24px; transition:opacity .6s ease;
+    font-family:Georgia,'Times New Roman',serif;
+  }
+  #inicio.oculto{ opacity:0; pointer-events:none; }
+  #boton-inicio{
+    font-family:inherit; font-size:1.05rem; color:#030814; background:#ffd94a;
+    border:none; padding:16px 32px; border-radius:999px; cursor:pointer;
+    box-shadow:0 0 24px rgba(255,217,74,0.6);
+  }
+  #inicio p{ color:#fff6d8; font-size:.9rem; max-width:300px; opacity:.85; }
+
+  /* ---- agregado: lluvia infinita de girasoles de fondo ---- */
+  #girasoles-cayendo{ position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
+  .girasol-cae{
+    position:absolute; top:-10vh; will-change:transform;
+    animation-name: caer, balanceo; animation-timing-function: linear, ease-in-out;
+    animation-iteration-count: infinite, infinite; animation-direction: normal, alternate;
+    filter: drop-shadow(0 0 4px rgba(255,217,74,.5));
+  }
+  @keyframes caer{ from{ transform:translateY(-10vh); } to{ transform:translateY(110vh); } }
+  @keyframes balanceo{ from{ margin-left:-24px; } to{ margin-left:24px; } }
+
+  /* ---- agregado: carta/sobre cerrado al inicio ---- */
+  #sobre-pantalla{
+    position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:20px; text-align:center;
+    padding:24px; transition:opacity .5s ease;
+    font-family:Georgia,'Times New Roman',serif;
+  }
+  #sobre-pantalla.oculto{ opacity:0; pointer-events:none; }
+  .sobre-cuerpo{
+    position:relative; width:230px; height:158px; cursor:pointer; perspective:700px;
+  }
+  .sobre-base{
+    position:absolute; inset:0; border-radius:8px;
+    background:linear-gradient(160deg,#ffe6ef,#ffc2da);
+    border:2px solid rgba(255,255,255,.75);
+    outline:1px dashed rgba(255,255,255,.55); outline-offset:-6px;
+    box-shadow:0 16px 34px rgba(0,0,0,.45);
+  }
+  .sobre-flor{ position:absolute; font-size:14px; opacity:.85; }
+  .sobre-flor.f1{ top:8px; left:8px; } .sobre-flor.f2{ top:8px; right:8px; }
+  .sobre-flor.f3{ bottom:8px; left:8px; } .sobre-flor.f4{ bottom:8px; right:8px; }
+  .sobre-solapa{
+    position:absolute; top:0; left:0; width:100%; height:62%;
+    background:linear-gradient(160deg,#ffcfe0,#ff9cc1);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin:top center; transform-style:preserve-3d;
+    transition: transform .8s cubic-bezier(.3,1.3,.4,1), opacity .5s ease .25s;
+    box-shadow: inset 0 -8px 12px rgba(0,0,0,.08);
+  }
+  .sobre-sello{
+    position:absolute; left:50%; top:54%; transform:translate(-50%,-50%);
+    width:44px; height:44px; border-radius:50%; background:#fff6f9;
+    display:flex; align-items:center; justify-content:center; font-size:1.3rem;
+    box-shadow:0 4px 10px rgba(0,0,0,.3); z-index:3;
+    transition: transform .5s ease, opacity .5s ease;
+  }
+  .sobre-cuerpo.abierto .sobre-solapa{ transform:rotateX(-150deg); opacity:0; }
+  .sobre-cuerpo.abierto .sobre-sello{ transform:translate(-50%,-50%) scale(.3); opacity:0; }
+
+  /* ---- agregado: reproductores de música ---- */
+  #reproductores{ display:flex; flex-direction:column; gap:12px; margin-top:24px; }
+  .reproductor{
+    display:flex; align-items:center; gap:12px;
+    background:rgba(255,217,74,0.07); border:1px solid rgba(255,217,74,0.3);
+    border-radius:14px; padding:10px 14px;
+  }
+  .rp-play{
+    flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:#ffd94a; color:#030814; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 12px rgba(255,217,74,.5);
+  }
+  .rp-play svg{ width:16px; height:16px; }
+  .rp-info{ flex:1 1 auto; min-width:0; text-align:left; }
+  .rp-titulo{ font-size:.85rem; color:#ffd94a; margin-bottom:4px; letter-spacing:.03em; }
+  .rp-barra{
+    position:relative; height:6px; border-radius:4px; background:rgba(255,246,216,0.18); cursor:pointer;
+  }
+  .rp-progreso{ position:absolute; left:0; top:0; height:100%; width:0%; border-radius:4px; background:#ffd94a; }
+  .rp-tiempos{ display:flex; justify-content:space-between; font-size:.7rem; color:#fff6d8; opacity:.7; margin-top:3px; }
+  .rp-loop{
+    flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,217,74,.5);
+    background:transparent; color:#fff6d8; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    opacity:.7; transition: opacity .2s ease, background .2s ease, color .2s ease;
+  }
+  .rp-loop svg{ width:14px; height:14px; }
+  .rp-loop.activo{ background:#ffd94a; color:#030814; opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="girasoles-cayendo" class="oculta"></div>
+
+<div id="sobre-pantalla">
+  <div class="sobre-cuerpo" id="sobre">
+    <div class="sobre-base">
+      <span class="sobre-flor f1">🌼</span><span class="sobre-flor f2">🌼</span>
+      <span class="sobre-flor f3">🌼</span><span class="sobre-flor f4">🌼</span>
+    </div>
+    <div class="sobre-solapa"></div>
+    <div class="sobre-sello">🌻</div>
+  </div>
+  <p style="color:#fff6d8; font-size:.9rem; opacity:.85;">Toca la carta para abrirla</p>
+</div>
+
+<div class="scene oculta" id="escena-flor"><canvas id="c" width="832" height="512"></canvas></div>
+<button id="volver" class="oculta">← Volver</button>
+
+<div id="tarjeta-mensaje" class="oculta">
+  <div class="caja">
+    <p>Hace poco fue el día de las flores amarillas, y aunque quizá no recibiste unas, quería que al menos te llegara algo bonito.
+Dicen que las flores amarillas representan cariño, alegría y la esperanza de que siempre lleguen cosas buenas. Y creo que, de alguna manera, eso también puede regalarse con palabras.
+Así que hoy quería recordarte que hay personas que hacen más bonitos los días simplemente por existir, y tú eres una de ellas. 🌻
+No hacen falta flores para que alguien sea especial, pero si algún día tienes la oportunidad de recibirlas, espero que sean de alguien que realmente sepa lo bonita que eres.
+Y si algún día florecen las palabras,
+ojalá alguna lleve tu nombre;
+porque hay personas que no necesitan primavera
+para hacer florecer el corazón de alguien.
+Quizá no pueda regalarte un jardín,
+ni llenar tus manos de flores,
+pero sí puedo dejarte estas palabras,
+para que recuerdes que, entre tantas personas,
+hay alguien que piensa que tu existencia
+ya es una pequeña forma de belleza. 🌻</p>
+    <div id="ramos"></div>
+
+    <div id="reproductores">
+      <div class="reproductor" data-audio="audio-cancion1">
+        <button class="rp-play" aria-label="Reproducir canción 1">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="rp-info">
+          <div class="rp-titulo">Canción 1</div>
+          <div class="rp-barra"><div class="rp-progreso"></div></div>
+          <div class="rp-tiempos"><span class="rp-actual">0:00</span><span class="rp-duracion">0:00</span></div>
+        </div>
+        <button class="rp-loop" aria-label="Repetir canción 1">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 17H7v-3l-4 4 4 4v-3h12v-6h-2v4zM7 7h10v3l4-4-4-4v3H5v6h2V7z"/></svg>
+        </button>
+      </div>
+      <div class="reproductor" data-audio="audio-cancion2">
+        <button class="rp-play" aria-label="Reproducir canción 2">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="rp-info">
+          <div class="rp-titulo">Canción 2</div>
+          <div class="rp-barra"><div class="rp-progreso"></div></div>
+          <div class="rp-tiempos"><span class="rp-actual">0:00</span><span class="rp-duracion">0:00</span></div>
+        </div>
+        <button class="rp-loop" aria-label="Repetir canción 2">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 17H7v-3l-4 4 4 4v-3h12v-6h-2v4zM7 7h10v3l4-4-4-4v3H5v6h2V7z"/></svg>
+        </button>
+      </div>
+    </div>
+    <audio id="audio-cancion1" src="cancion1.mp3" preload="metadata"></audio>
+    <audio id="audio-cancion2" src="cancion2.mp3" preload="metadata"></audio>
+  </div>
+</div>
+
+<audio id="audio" src="cancion.mp3" loop></audio>
+
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const W=832,H=512,D=12.59;
+
+const stars=Array.from({length:150},(_,i)=>({
+  x:(i*137.31)%W,y:(i*71.73)%H,r:.35+(i%4)*.18,a:.15+(i%7)*.045
+}));
+
+const hearts=[
+ {x:170,y:470,s:34,p:0.0,ring:1},
+ {x:545,y:70,s:19,p:1.2,ring:1},
+ {x:758,y:92,s:27,p:2.0,ring:1},
+ {x:585,y:220,s:13,p:2.7,ring:0},
+ {x:775,y:360,s:14,p:3.2,ring:1},
+ {x:25,y:230,s:12,p:4.1,ring:0},
+ {x:457,y:278,s:11,p:5.0,ring:0},
+ {x:23,y:165,s:10,p:5.7,ring:0},
+ {x:429,y:137,s:7,p:1.8,ring:1}
+];
+
+function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+function flowerProgress(t,start,dur){return Math.max(0,Math.min(1,(t-start)/dur))}
+function leaf(x,y,ang,len,w,alpha=1){
+  ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.globalAlpha=alpha;
+  const g=ctx.createLinearGradient(0,0,len,0);
+  g.addColorStop(0,'#0a542d');g.addColorStop(.65,'#15994a');g.addColorStop(1,'#31c965');
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,0);
+  ctx.bezierCurveTo(len*.18,-w,len*.72,-w,len,0);
+  ctx.bezierCurveTo(len*.72,w,len*.18,w,0,0);ctx.fill();ctx.restore();
+}
+function stem(x,y,h,p,w=5){
+  const q=ease(p);ctx.save();ctx.strokeStyle='#15964a';ctx.lineWidth=w;
+  ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-h*q);ctx.stroke();
+  ctx.strokeStyle='#0b542f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+1,y);ctx.lineTo(x+1,y-h*q);ctx.stroke();ctx.restore();
+}
+const FLOR_TIPOS = {
+  girasol:  { capas:[ {n:10, rx:6,  ry:26, dist:9} ],                                   centro:{rx:11, ry:11, color:'#7a4a12'} },
+  rosa:     { capas:[ {n:8,  rx:11, ry:20, dist:6}, {n:6, rx:9, ry:14, dist:4, rot:22} ], centro:{rx:8,  ry:6,  color:'#e8a51a'} },
+  lirio:    { capas:[ {n:6,  rx:7,  ry:30, dist:5} ],                                   centro:{rx:6,  ry:6,  color:'#c99a1c'} },
+  petunia:  { capas:[ {n:5,  rx:13, ry:23, dist:11} ],                                  centro:{rx:13, ry:6,  color:'#ffd85a'} },
+  camelia:  { capas:[ {n:12, rx:8,  ry:14, dist:6}, {n:8, rx:6, ry:10, dist:3, rot:15} ], centro:{rx:7,  ry:5,  color:'#c99a1c'} }
+};
+function petalosDe(tipo){
+  const cfg = FLOR_TIPOS[tipo] || FLOR_TIPOS.petunia;
+  let out=[];
+  cfg.capas.forEach(capa=>{
+    for(let i=0;i<capa.n;i++){
+      out.push({ ang:(360/capa.n)*i+(capa.rot||0), rx:capa.rx, ry:capa.ry, dist:capa.dist });
+    }
+  });
+  return { petalos: out, centro: cfg.centro };
+}
+function flower(x,y,p,scale=1,tipo='petunia'){
+  if(p<=0)return; const q=ease(p);
+  const yy=y+22*(1-q);
+  const {petalos, centro} = petalosDe(tipo);
+  ctx.save();ctx.translate(x,yy);ctx.scale(scale*q,scale*q);
+  ctx.shadowColor='rgba(255,217,90,.35)';ctx.shadowBlur=14;
+  petalos.forEach(pt=>{
+    const a=pt.ang*Math.PI/180-Math.PI/2;
+    ctx.save();ctx.rotate(a);ctx.translate(0,-pt.dist);
+    const grad=ctx.createLinearGradient(0,-pt.ry*0.85,0,pt.ry*0.65);
+    grad.addColorStop(0,'#fff6cf');grad.addColorStop(.7,'#ffd94a');grad.addColorStop(1,'#e8a51a');
+    ctx.fillStyle=grad;ctx.beginPath();
+    ctx.ellipse(0,0,pt.rx,pt.ry,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+  ctx.shadowBlur=0;
+  ctx.fillStyle=centro.color;ctx.beginPath();ctx.ellipse(0,2,centro.rx,centro.ry,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff0a0';ctx.beginPath();ctx.ellipse(0,0,centro.rx*0.55,centro.ry*0.5,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function drawHeart(x,y,s,a=1){
+  ctx.save();ctx.translate(x,y);ctx.scale(s/28,s/28);ctx.globalAlpha=a;
+  ctx.fillStyle='#f36d91';ctx.beginPath();ctx.moveTo(0,12);
+  ctx.bezierCurveTo(-30,-7,-18,-23,0,-10);
+  ctx.bezierCurveTo(18,-23,30,-7,0,12);ctx.fill();ctx.restore();
+}
+function ringHeart(h,t){
+  const bob=Math.sin(t*.8+h.p)*7;
+  const drift=((t*8+h.p*70)%900)-80;
+  const x=(h.x+drift*.04+W)%W, y=h.y+bob;
+  if(h.ring){
+    ctx.strokeStyle='rgba(246,145,177,.72)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(x,y,h.s*.72,0,Math.PI*2);ctx.stroke();
+  }
+  drawHeart(x,y,h.s,.9);
+}
+function grass(x,y,h,lean,p){
+  const q=ease(p);ctx.save();ctx.strokeStyle='#159c4e';ctx.lineWidth=3;
+  ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);
+  ctx.quadraticCurveTo(x+lean*.35,y-h*.55*q,x+lean,y-h*q);ctx.stroke();ctx.restore();
+}
+
+let tipoActual='petunia';
+let inicioAnimMs=null;
+function render(ms){
+  if(inicioAnimMs===null) inicioAnimMs=ms;
+  const t=((ms-inicioAnimMs)/1000)%D;
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createRadialGradient(420,360,20,420,360,520);
+  bg.addColorStop(0,'#071329');bg.addColorStop(1,'#020711');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  stars.forEach((s,i)=>{
+    const tw=.5+.5*Math.sin(t*1.2+i);
+    ctx.globalAlpha=s.a*tw;ctx.fillStyle='#d8e9ff';
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // floating hearts throughout the loop
+  hearts.forEach(h=>ringHeart(h,t));
+
+  // central sprout appears first
+  const p0=flowerProgress(t,0.2,1.5);
+  stem(432,468,95,p0,5);
+  leaf(431,410,-2.65,37,13,p0);
+  leaf(432,430,-.55,35,13,p0);
+  leaf(431,450,-2.55,31,12,p0);
+  leaf(432,460,-.55,28,11,p0);
+
+  // lower foliage grows
+  const pf=flowerProgress(t,1.6,4.4);
+  const leaves=[
+    [430,455,-2.8,70,20],[433,448,-.35,70,20],[414,467,-2.55,57,18],
+    [448,462,-.55,64,18],[395,478,-2.9,49,17],[465,480,-.35,52,17],
+    [375,490,-2.75,40,14],[486,493,-.4,42,14],[350,500,-2.9,34,12],
+    [510,501,-.25,35,12]
+  ];
+  leaves.forEach(v=>leaf(v[0],v[1],v[2],v[3],v[4],pf));
+
+  // tall blades around the bouquet
+  const pg=flowerProgress(t,2.3,4.8);
+  [[205,495,175,18],[230,500,205,-10],[174,500,145,25],[610,500,175,-18],
+   [650,500,205,18],[680,505,145,-20],[265,500,100,-12],[560,505,115,14],
+   [145,505,90,12],[710,505,115,-18]].forEach(v=>grass(v[0],v[1],v[2],v[3],pg));
+
+  // stems + flowers
+  const flowers=[
+    [326,222,2.9,1.0,0],
+    [425,196,3.8,1.0,0],
+    [500,207,4.5,.95,0],
+    [426,128,5.0,.78,0]
+  ];
+  flowers.forEach(f=>{
+    const p=flowerProgress(t,f[2],1.15);
+    stem(f[0],470,470-f[1],p,5);
+    // leaves attached to each flower stem
+    const q=ease(p);
+    leaf(f[0],360,-2.55,42,15,q*.95);
+    leaf(f[0],385,-.58,38,14,q*.9);
+    flower(f[0],f[1],p,f[3],tipoActual);
+  });
+
+  // extra central leaves behind flowers
+  const pc=flowerProgress(t,3.0,3.0);
+  [[405,430,-2.7,55,17],[460,425,-.4,55,17],[390,450,-2.8,48,16],
+   [475,452,-.35,50,16],[410,475,-2.65,44,15],[450,475,-.45,43,15]]
+   .forEach(v=>leaf(v[0],v[1],v[2],v[3],v[4],pc));
+
+  // tiny glowing pollen
+  const glow=flowerProgress(t,4.8,1.5);
+  for(let i=0;i<22;i++){
+    const a=i*2.399+t*.35, r=35+(i%6)*15;
+    const x=426+Math.cos(a)*r, y=170+Math.sin(a)*r*.75;
+    ctx.globalAlpha=.15+.45*glow*(.5+.5*Math.sin(t*3+i));
+    ctx.fillStyle='#ffe95d';ctx.beginPath();ctx.arc(x,y,1.5+(i%2),0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+/* ---- agregado: lluvia infinita de girasoles de fondo ---- */
+const contGirasoles = document.getElementById('girasoles-cayendo');
+for(let i=0;i<20;i++){
+  const el = document.createElement('div');
+  el.className='girasol-cae';
+  el.innerHTML = svgIconoFlor('girasol');
+  const size = 26 + Math.random()*24;
+  el.style.width = size+'px';
+  el.style.left = (Math.random()*100)+'vw';
+  el.style.transform = `rotate(${Math.random()*360}deg)`;
+  const durCaida = 10 + Math.random()*10;
+  const durBal = 3 + Math.random()*3;
+  const retraso = Math.random()*-20;
+  el.style.animationDuration = `${durCaida}s, ${durBal}s`;
+  el.style.animationDelay = `${retraso}s, ${retraso}s`;
+  contGirasoles.appendChild(el);
+}
+
+/* ---- agregado: carta/sobre — clic para abrir, reproduce audio y revela el mensaje ---- */
+const sobrePantalla = document.getElementById('sobre-pantalla');
+const sobre = document.getElementById('sobre');
+const audio = document.getElementById('audio');
+sobre.addEventListener('click', ()=>{
+  audio.play().catch(()=>{});
+  sobre.classList.add('abierto');
+  tarjetaMensaje.classList.remove('oculta');
+  contGirasoles.classList.remove('oculta');
+  setTimeout(()=>{
+    sobrePantalla.classList.add('oculto');
+    setTimeout(()=> sobrePantalla.style.display='none', 500);
+  }, 550);
+});
+
+/* ---- agregado: fila de 5 ramos + animación al elegir uno ---- */
+const NOMBRES = { girasol:'Girasol', rosa:'Rosa', lirio:'Lirio', petunia:'Petunia', camelia:'Camelia' };
+function svgIconoFlor(tipo){
+  const {petalos, centro} = petalosDe(tipo);
+  const uid = 'ico-'+tipo;
+  let p = `<defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff6cf"/><stop offset="70%" stop-color="#ffd94a"/><stop offset="100%" stop-color="#e8a51a"/>
+    </linearGradient></defs>`;
+  petalos.forEach(pt=>{
+    p += `<g transform="rotate(${pt.ang}) translate(0,${-pt.dist})"><ellipse rx="${pt.rx}" ry="${pt.ry}" fill="url(#${uid})"/></g>`;
+  });
+  p += `<ellipse cy="2" rx="${centro.rx}" ry="${centro.ry}" fill="${centro.color}"/>
+        <ellipse rx="${centro.rx*0.55}" ry="${centro.ry*0.5}" fill="#fff0a0"/>`;
+  return `<svg viewBox="-36 -36 72 72" xmlns="http://www.w3.org/2000/svg">${p}</svg>`;
+}
+
+const contRamos = document.getElementById('ramos');
+const escenaFlor = document.getElementById('escena-flor');
+const tarjetaMensaje = document.getElementById('tarjeta-mensaje');
+const btnVolver = document.getElementById('volver');
+
+Object.keys(FLOR_TIPOS).forEach(tipo=>{
+  const btn = document.createElement('button');
+  btn.className='ramo-btn';
+  btn.title = NOMBRES[tipo];
+  btn.setAttribute('aria-label', NOMBRES[tipo]);
+  btn.innerHTML = svgIconoFlor(tipo);
+  btn.addEventListener('click', ()=>{
+    tipoActual = tipo;
+    inicioAnimMs = null; // reinicia la animación desde el brote
+    tarjetaMensaje.classList.add('oculta');
+    escenaFlor.classList.remove('oculta');
+    btnVolver.classList.remove('oculta');
+    contGirasoles.classList.add('oculta');
+  });
+  contRamos.appendChild(btn);
+});
+
+btnVolver.addEventListener('click', ()=>{
+  escenaFlor.classList.add('oculta');
+  btnVolver.classList.add('oculta');
+  tarjetaMensaje.classList.remove('oculta');
+  contGirasoles.classList.remove('oculta');
+});
+
+/* ---- agregado: reproductores de música (play/pausa, progreso, bucle) ---- */
+function formatoTiempo(s){
+  if(!isFinite(s)) return '0:00';
+  const m = Math.floor(s/60), seg = Math.floor(s%60);
+  return m+':'+String(seg).padStart(2,'0');
+}
+const iconoPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const iconoPausa = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
+const reproductoresEls = document.querySelectorAll('.reproductor');
+const audiosReproductores = [];
+reproductoresEls.forEach(fila=>{
+  const audioEl = document.getElementById(fila.dataset.audio);
+  const btnPlay = fila.querySelector('.rp-play');
+  const btnLoop = fila.querySelector('.rp-loop');
+  const barra = fila.querySelector('.rp-barra');
+  const progreso = fila.querySelector('.rp-progreso');
+  const elActual = fila.querySelector('.rp-actual');
+  const elDuracion = fila.querySelector('.rp-duracion');
+
+  audiosReproductores.push(audioEl);
+
+  btnPlay.addEventListener('click', ()=>{
+    if(audioEl.paused){
+      audiosReproductores.forEach(a=>{ if(a!==audioEl) a.pause(); });
+      audio.pause(); // pausa la música de fondo mientras suena esta canción
+      audioEl.play().catch(()=>{});
+    } else {
+      audioEl.pause();
+    }
+  });
+  audioEl.addEventListener('play', ()=>{ btnPlay.innerHTML = iconoPausa; });
+  audioEl.addEventListener('pause', ()=>{ btnPlay.innerHTML = iconoPlay; });
+  audioEl.addEventListener('loadedmetadata', ()=>{ elDuracion.textContent = formatoTiempo(audioEl.duration); });
+  audioEl.addEventListener('timeupdate', ()=>{
+    elActual.textContent = formatoTiempo(audioEl.currentTime);
+    if(audioEl.duration){
+      progreso.style.width = (audioEl.currentTime/audioEl.duration*100)+'%';
+    }
+  });
+  audioEl.addEventListener('ended', ()=>{
+    if(!audioEl.loop){ progreso.style.width='0%'; }
+  });
+  barra.addEventListener('click', (ev)=>{
+    if(!audioEl.duration) return;
+    const rect = barra.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (ev.clientX-rect.left)/rect.width));
+    audioEl.currentTime = frac*audioEl.duration;
+  });
+  btnLoop.addEventListener('click', ()=>{
+    audioEl.loop = !audioEl.loop;
+    btnLoop.classList.toggle('activo', audioEl.loop);
+  });
+});
+</script>
+
+</body>
+</html>
